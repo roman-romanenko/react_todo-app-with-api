@@ -15,6 +15,7 @@ type FilteredTodos = 'all' | 'active' | 'completed';
 export const App: React.FC = () => {
   const user = useContext(AuthContext);
   const newTodoField = useRef<HTMLInputElement>(null);
+  const changedTodoField = useRef<HTMLInputElement>(null);
   const userId = user?.id || 0;
 
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -22,11 +23,13 @@ export const App: React.FC = () => {
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [changedTodoTitle, setChangedTodoTitle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [isHiddenTodoChange, setIsHiddenTodoChange] = useState(false);
   const [openerTodos, setOpenerTodos] = useState(true);
   const [filterType, setFilterType] = useState<FilteredTodos>('all');
   const [todoId, setTodoId] = useState(0);
   const [error, setErorr] = useState('');
+  const [doubleCLick, setDoubleClick] = useState(false);
 
   useEffect(() => {
     if (newTodoField.current) {
@@ -35,12 +38,19 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (changedTodoField.current) {
+      changedTodoField.current.focus();
+    }
+  }, [doubleCLick]);
+
+  useEffect(() => {
     if (userId) {
       getTodos(userId)
         .then(setTodos)
         .finally(() => {
           setIsLoading(false);
           setIsHiddenTodoChange(false);
+          setIsDeleteLoading(false);
         });
     }
   }, [userId, trigger]);
@@ -181,6 +191,7 @@ export const App: React.FC = () => {
                         className="todo__title-field"
                         placeholder="Empty todo will be deleted"
                         value={changedTodoTitle}
+                        ref={changedTodoField}
                         onChange={(event) => {
                           setChangedTodoTitle(event.target.value);
                         }}
@@ -195,6 +206,7 @@ export const App: React.FC = () => {
                         setTodoId(todo.id);
                         setIsHiddenTodoChange(true);
                         setChangedTodoTitle(todo.title);
+                        setDoubleClick(prev => !prev);
                       }}
                     >
                       {todo.title}
@@ -223,7 +235,7 @@ export const App: React.FC = () => {
                       {
                         'is-active':
                     ((todo.id === todoId && isLoading)
-                    || (isLoading && completedTodos.includes(todo))),
+                    || (isDeleteLoading && completedTodos.includes(todo))),
                       })
                   }
                 >
@@ -292,11 +304,10 @@ export const App: React.FC = () => {
               style={completedTodos.length === 0
                 ? { visibility: 'hidden' }
                 : { visibility: 'visible' }}
-              // hidden={completedTodos.length === 0}
               onClick={() => {
                 todos.forEach((todo) => {
                   if (todo.completed) {
-                    setIsLoading(true);
+                    setIsDeleteLoading(true);
                     deleteTodos(todo.id)
                       .then(() => setTriger(prev => !prev))
                       .catch(() => changeError('deleteError'));
